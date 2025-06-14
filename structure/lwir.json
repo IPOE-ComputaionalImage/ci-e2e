@@ -1,0 +1,80 @@
+{
+  "surfaces": [
+    {
+      "type": "Spherical",
+      "material": "Ge",
+      "aperture": {
+        "type": "CircularAperture",
+        "diameter": 0.017000000923871994
+      },
+      "roc": Infinity
+    },
+    {
+      "type": "Spherical",
+      "material": "vacuum",
+      "aperture": {
+        "type": "CircularAperture",
+        "diameter": 0.017000000923871994
+      },
+      "roc": Infinity
+    },
+    {
+      "type": "EvenAspherical",
+      "material": "Ge",
+      "aperture": {
+        "type": "CircularAperture",
+        "diameter": 0.020999999716877937
+      },
+      "roc": 0.13401000201702118,
+      "conic": 150.0,
+      "coefficients": [
+        0.0,
+        54400.0,
+        -932499968.0,
+        7280999792640.0
+      ]
+    },
+    {
+      "type": "EvenAspherical",
+      "material": "vacuum",
+      "aperture": {
+        "type": "CircularAperture",
+        "diameter": 0.01899999938905239
+      },
+      "roc": Infinity,
+      "conic": 0.0,
+      "coefficients": [
+        0.0,
+        68330.0,
+        -1076999936.0,
+        9722000310272.0
+      ]
+    },
+    {
+      "type": "CircularStop",
+      "aperture": {
+        "type": "CircularAperture",
+        "diameter": 0.014654000289738178
+      }
+    }
+  ],
+  "contexts": [
+    {
+      "distance": 0.0010000000474974513
+    },
+    {
+      "distance": 0.0020000000949949026
+    },
+    {
+      "distance": 0.004000000189989805
+    },
+    {
+      "distance": 0.003000000026077032
+    },
+    {
+      "distance": 0.039549000561237335
+    }
+  ],
+  "foremost_material": "vacuum",
+  "stop_idx": -1
+}
