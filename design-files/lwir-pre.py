@@ -1,43 +1,37 @@
-import dataclasses
+# ========== 一般来说需要改的内容 ==========
+lens_file_path = 'structure/lwir.json'
+resolution = (512, 640)
+pixel_size = 24e-6
+noise_std = 1e-3
+perspective_focal_length = 44.605e-3
+wl = (8e-6, 10e-6, 12e-6)
+depth = float('inf')
+image_size = (512, 640)
+batch_size = 2
+nn_lr = 1e-4
+epochs = 50
+warmup_steps = 1000
+run_name = 'pretrain'
+data_root = r'\\wsl.localhost\Ubuntu\home\hcc\datasets\HyperSim'
+# trained_ckpt_path = 'pretrained.pth'
 
-import dnois
+# ========== 可以忽略的内容 ==========
+framework = 'pretrain'
 
-from e2e.specification import Template
+optimizable_parameters = []
+sampler = 256
 
+segments = (8, 10)
+x_symmetric = True
+y_symmetric = True
 
-@dataclasses.dataclass
-class Design(Template):
-    # ========== 一般来说需要改的内容 ==========
-    lens_file_path: str = 'structure/lwir.json'
-    resolution: tuple[int, int] = (512, 640)
-    pixel_size: float = 24e-6
-    noise_std: float = 1e-3
-    perspective_focal_length: float = 44.605e-3
-    wl: tuple[float, ...] = (8e-6, 10e-6, 12e-6)
-    depth: float = float('inf')
-    image_size: tuple[int, int] = (512, 640)
-    batch_size: int = 16
-    nn_lr: float = 1e-4
-    epochs: int = 50
-    warmup_steps: int = 1000
-    run_name: str = 'pretrain'
+patch_wise_conv_pad = 32
+linear_conv = True
 
-    # ========== 可以忽略的内容 ==========
-    optimizable_parameters: tuple[str] = ()
-    sampler: int = 256
+workers = 4
 
-    segments: tuple[int, int] = (8, 10)
-    x_symmetric: bool = True
-    y_symmetric: bool = True
+lr_decay_interval = 30
 
-    patch_wise_conv_pad: int | tuple[int, int] = 32
-    linear_conv: bool = True
-
-    data_root: str = '/public/home/dx/gjq/datasets/HyperSim'
-    workers: str = 4
-
-    lr_decay_interval: int = 30
-
-    checkpoint_target: str = 'val/psnr'
-    checkpoint_target_mode: str = 'max'
-    log_image_interval: int = 2000
+checkpoint_target = 'val/psnr'
+checkpoint_target_mode = 'max'
+log_image_interval = 2000

@@ -93,12 +93,14 @@ class ImagingSystem(torch.nn.Module, FromSpecification):
         sensor = create_sensor(spec)
 
         sampling_num = dnois.typing.size2d(spec.sampler)
-        sampler = sq.first.apt.sampler('rect', *sampling_num)
+        sampler = sq.first.apt.sampler('rect', sampling_num)
+        psf_center = rt.RobustMeanPsfCenter()
+        psf_model = rt.IncoherentRectKernelPsf(psf_center=psf_center)
         optics = rt.CoaxialRayTracing(
             sq,
             sensor,
             perspective_focal_length=spec.perspective_focal_length,
-            psf_center=spec.psf_center,
+            psf_model=psf_model,
             sampler=sampler,
             wl=spec.wl,
             segments=spec.segments,

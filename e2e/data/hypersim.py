@@ -23,6 +23,20 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
+def _filter_unavailable(foi_list: list[tuple[str, str, int]], root):
+    def is_available(path_info: tuple[str, str, int]):
+        path = root / path_info[0] / 'images'
+        frame_id = f'{path_info[2]:04d}'
+        i_path_cam = f'scene_{path_info[1]}_final_preview'
+        i_path_prefix = 'jpg'
+        i_path = path / i_path_cam / f'frame.{frame_id}.color.{i_path_prefix}'
+        return i_path.exists()
+
+    foi_list = filter(is_available, foi_list)
+    foi_list = list(foi_list)
+    return foi_list
+
+
 class HyperSim(Dataset):
     height = 768
     height_min = height
@@ -60,7 +74,8 @@ class HyperSim(Dataset):
         with open(split_file_path, 'r') as f:
             reader = csv.reader(f)
             foi = [line for line in reader if line[5] == split]  # files of interest
-        self._foi = [(line[0], line[1], int(line[2])) for line in foi]  # content: (scene_name, camera_name, frame_id)
+        foi_list = [(line[0], line[1], int(line[2])) for line in foi]  # content: (scene_name, camera_name, frame_id)
+        self._foi = _filter_unavailable(foi_list, root)
         if len(self._foi) != self.size[split]:
             warnings.warn(f'Wrong number of samples for {split} split '
                           f'of HyperSim: {len(self._foi)} ({self.size[split]} expected)')
@@ -117,8 +132,8 @@ class HyperSimDM(lightning.LightningDataModule, e2e.specification.FromSpecificat
         self.batch_size = batch_size
         self.workers = workers
 
-    def dataset(self, split):
-        return HyperSim(self.root, split, self.image_size)
+    def dataset(self, split, random_crop: bool = True):
+        return HyperSim(self.root, split, self.image_size, crop='random' if random_crop else 'center')
 
     def train_dataloader(self):
         return DataLoader(
@@ -127,7 +142,12 @@ class HyperSimDM(lightning.LightningDataModule, e2e.specification.FromSpecificat
 
     def val_dataloader(self):
         return DataLoader(
-            self.dataset('val'), self.batch_size, False, num_workers=self.workers, pin_memory=True,
+            self.dataset('val', False), self.batch_size, False, num_workers=self.workers, pin_memory=True,
+        )
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.dataset('test', False), self.batch_size, False, num_workers=self.workers, pin_memory=True,
         )
 
     @classmethod

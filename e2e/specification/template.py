@@ -38,6 +38,9 @@ def _scale_param(m: dnois.torch.EnhancedModule, param_name: str, log: bool):
 # TODO: provide more methods to override
 @dataclasses.dataclass
 class Template:
+    # ---------- framework ----------
+    framework:str = 'e2e'
+
     # ---------- create surface sequence ----------
     lens_file_path: str = None
 
@@ -155,6 +158,9 @@ class Template:
     # ---------- constraints ----------
     target_focal_length: float = None
     focal_length_loss_weight: float = None
+
+    # ---------- evaluation ----------
+    trained_ckpt_path: str = None
 
     # ---------- miscellaneous ----------
     random_seed: int = 42

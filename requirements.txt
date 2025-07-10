@@ -1,0 +1,10 @@
+dnois
+lightning
+matplotlib
+notebook
+numpy
+pillow
+tensorboard
+torch
+torchmetrics
+torchvision

@@ -5,7 +5,7 @@
       "material": "Ge",
       "aperture": {
         "type": "CircularAperture",
-        "diameter": 0.017000000923871994
+        "radius": 0.0085
       },
       "roc": Infinity
     },
@@ -14,7 +14,7 @@
       "material": "vacuum",
       "aperture": {
         "type": "CircularAperture",
-        "diameter": 0.017000000923871994
+        "radius": 0.0085
       },
       "roc": Infinity
     },
@@ -23,7 +23,7 @@
       "material": "Ge",
       "aperture": {
         "type": "CircularAperture",
-        "diameter": 0.020999999716877937
+        "radius": 0.0105
       },
       "roc": 0.13401000201702118,
       "conic": 150.0,
@@ -39,7 +39,7 @@
       "material": "vacuum",
       "aperture": {
         "type": "CircularAperture",
-        "diameter": 0.01899999938905239
+        "radius": 0.0095
       },
       "roc": Infinity,
       "conic": 0.0,
@@ -54,7 +54,7 @@
       "type": "CircularStop",
       "aperture": {
         "type": "CircularAperture",
-        "diameter": 0.014654000289738178
+        "radius": 0.007327000144869089
       }
     }
   ],

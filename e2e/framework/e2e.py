@@ -2,25 +2,24 @@ import logging
 import typing
 
 import dnois
-import lightning
 import torch
 
 import e2e.data
-import e2e.train
 from e2e.model import ImagingSystem
-from e2e.specification import parse_spec_file, FromSpecification, Template
-from e2e.train import common
+from e2e.specification import FromSpecification, Template
+
+from .common import *
+from .trainer import *
 
 __all__ = [
-    'main',
-
     'TrainingFramework',
 ]
 
 logger = logging.getLogger(__name__)
 
 
-class TrainingFramework(common.CITrainingBase, FromSpecification):
+class TrainingFramework(CIFramework, FromSpecification):
+    name = 'e2e'
 
     def __init__(
         self,
@@ -94,6 +93,9 @@ class TrainingFramework(common.CITrainingBase, FromSpecification):
         for k, m in self.val_metrics.items():
             self.log(f'val/{k}', m(pred, gt.contiguous()))
 
+    def test_step(self, batch, batch_idx):
+        return self.validation_step(batch, batch_idx)
+
     def warmup(self, optimizer):
         if not (self.warmup_steps > 0 and self.global_step <= self.warmup_steps):
             return
@@ -134,7 +136,7 @@ class TrainingFramework(common.CITrainingBase, FromSpecification):
 
     @torch.no_grad()
     def make_figure(self):
-        return self.model.o.plot_cross_section()[0]
+        return self.model.o.plot_cross_section()
 
     def log_image(self, label, image):
         self.logger.experiment.add_images(label, image[0], self.global_step, dataformats='CHW')  # noqa
@@ -145,52 +147,43 @@ class TrainingFramework(common.CITrainingBase, FromSpecification):
         nn_sd = {k[len(prefix):]: v for k, v in ckpt['state_dict'].items() if k.startswith(prefix)}
         self.model.nn.load_state_dict(nn_sd)
 
+    def execute_train(self, spec: Template):
+        trainer = create_trainer_from_spec(spec)
+        dm = e2e.data.HyperSimDM.from_specification(spec)
+
+        logger.info('Preparation completed, starting end-to-end training...')
+        trainer.fit(self, datamodule=dm)
+
+    def execute_eval(self, spec: Template):
+        trainer = create_trainer_from_spec(spec)
+        trainer.logger = None
+        dm = e2e.data.HyperSimDM.from_specification(spec)
+
+        logger.info('Preparation completed, starting evaluation...')
+        trainer.test(self, datamodule=dm)
+
     @classmethod
     def from_specification(cls, spec: Template) -> typing.Self:
         imaging_system = ImagingSystem.from_specification(spec)
-        obj = cls(
-            imaging_system,
-            spec.optics_lr,
-            spec.nn_lr,
-            spec.lr_decay_factor,
-            spec.lr_decay_interval,
-            spec.warmup_steps,
-            spec.target_focal_length,
-            spec.focal_length_loss_weight,
-            spec.log_image_interval,
-        )
+        kwargs = {
+            'imaging_system_model': imaging_system,
+            'optics_lr': spec.optics_lr,
+            'nn_lr': spec.nn_lr,
+            'lr_decay_factor': spec.lr_decay_factor,
+            'lr_decay_interval': spec.lr_decay_interval,
+            'warmup_steps': spec.warmup_steps,
+            'target_fl': spec.target_focal_length,
+            'fl_loss_w': spec.focal_length_loss_weight,
+            'log_image_interval': spec.log_image_interval,
+        }
+
+        if spec.trained_ckpt_path is None:
+            obj = cls(**kwargs)
+            if spec.nn_init_path is not None:
+                logger.info(f'Loading pretrained NN from {spec.nn_init_path}')
+                obj.load_nn_pretrained(spec.nn_init_path)
+        else:
+            obj = cls.load_from_checkpoint(spec.trained_ckpt_path, **kwargs)  # noqa
 
         logger.info('End-to-end training framework created')
         return obj
-
-
-def get_args():
-    parser = common.get_base_arg_parser()
-
-    args = parser.parse_args()
-    return args
-
-
-def main():
-    args = get_args()
-
-    spec = parse_spec_file(args.spec_file)
-
-    lightning.seed_everything(spec.random_seed)
-    torch.set_float32_matmul_precision('high')
-
-    logging.basicConfig(level=logging.INFO)
-
-    m = TrainingFramework.from_specification(spec)
-    trainer = e2e.train.create_trainer_from_spec(spec)
-    dm = e2e.data.HyperSimDM.from_specification(spec)
-
-    if spec.nn_init_path is not None:
-        m.load_nn_pretrained(spec.nn_init_path)
-
-    logger.info('Preparation completed, starting end-to-end training...')
-    trainer.fit(m, datamodule=dm)
-
-
-if __name__ == '__main__':
-    main()
