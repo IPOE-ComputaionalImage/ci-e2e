@@ -4,6 +4,7 @@ matplotlib
 notebook
 numpy
 pillow
+pyyaml
 tensorboard
 torch
 torchmetrics

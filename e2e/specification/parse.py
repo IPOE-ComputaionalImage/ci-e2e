@@ -1,7 +1,9 @@
 import abc
+import json
+from pathlib import Path
+import yaml
 import runpy
 import typing
-from pathlib import Path
 
 from .template import Template
 
@@ -12,18 +14,13 @@ __all__ = [
     'SpecificationError',
 ]
 
+
 def _filter_special(global_dict):
     return {k: v for k, v in global_dict.items() if not k.startswith('_')}
 
 
-class SpecificationError(RuntimeError):
-    pass
-
-
-def parse_spec_file(file_path: str | Path) -> Template:
-    file_path = str(file_path)
-
-    results = runpy.run_path(file_path)
+def _parse_py(file_path: Path) -> Template:
+    results = runpy.run_path(str(file_path))
 
     template_cls = None
     template = None
@@ -50,6 +47,32 @@ def parse_spec_file(file_path: str | Path) -> Template:
     else:  # construct a template from the found template class
         template = template_cls()
     return template
+
+
+def _parse_json(file_path: Path) -> Template:
+    with file_path.open('r') as f:
+        data = json.load(f)
+    return Template(**data)
+
+
+def _parse_yaml(file_path: Path) -> Template:
+    with file_path.open('r') as f:
+        data = yaml.safe_load(f)
+    return Template(**data)
+
+
+class SpecificationError(RuntimeError):
+    pass
+
+
+def parse_spec_file(file_path: str | Path) -> Template:
+    file_path = Path(file_path)
+    if file_path.suffix == '.py':
+        return _parse_py(file_path)
+    elif file_path.suffix == '.json':
+        return _parse_json(file_path)
+    elif file_path.suffix == '.yaml' or file_path.suffix == '.yml':
+        return _parse_yaml(file_path)
 
 
 class FromSpecification(metaclass=abc.ABCMeta):

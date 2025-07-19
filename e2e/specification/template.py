@@ -6,6 +6,8 @@ import dnois
 from dnois.optics import rt
 import torch
 
+import e2e.material
+
 __all__ = [
     'Template',
 ]
@@ -39,7 +41,7 @@ def _scale_param(m: dnois.torch.EnhancedModule, param_name: str, log: bool):
 @dataclasses.dataclass
 class Template:
     # ---------- framework ----------
-    framework:str = 'e2e'
+    framework: str = 'e2e'
 
     # ---------- create surface sequence ----------
     lens_file_path: str = None
@@ -49,7 +51,14 @@ class Template:
             raise ValueError('lens_file_path is not specified')
 
         logger.info(f'Loading lens from {self.lens_file_path}')
-        return rt.CoaxialSurfaceSequence.load_json(self.lens_file_path)
+        while True:
+            try:
+                return rt.CoaxialSurfaceSequence.load_json(self.lens_file_path)
+            except dnois.mt.MaterialNotFoundError as e:
+                name = e.material_name
+                catalog = e2e.material.find_material(name)
+                e2e.material.load_catalog(catalog)
+                logger.info(f'Loaded catalog {catalog} to use material {name}')
 
     # ---------- specify parameters to optimize ----------
     # NOTE: only in optical system model
@@ -102,6 +111,15 @@ class Template:
                 if self.log_param_transformations:
                     logger.info(f'Set transformation for parameter {k}: {v.__class__.__name__}')
 
+    # ---------- materials ----------
+    required_catalogs: list[str] = None
+
+    def load_catalogs(self):
+        if self.required_catalogs is None:
+            return
+        for catalog in self.required_catalogs:
+            e2e.material.load_catalog(catalog)
+
     # ---------- sensor parameters ----------
     resolution: int | tuple[int, int] = None
     pixel_size: float | tuple[float, float] = None
@@ -112,12 +130,27 @@ class Template:
     quantize: int = 0
     linear2srgb: bool = False
 
+    def create_sensor(self) -> dnois.sensor.StandardSensor:
+        sensor = dnois.sensor.StandardSensor(
+            self.resolution,
+            self.pixel_size,
+            self.rgb_sensor,
+            None,
+            self.bayer_pattern,
+            self.noise_std,
+            self.max_value,
+            self.quantize,
+            self.linear2srgb,
+        )
+        return sensor
+
     # ---------- configuration of optical system ----------
     perspective_focal_length: float = None
     psf_center: rt.PsfCenter = 'mean-robust'
     sampler: int | tuple[int, int] = None
     wl: dnois.typing.Vector = dnois.fdc()
     segments: dnois.optics.SegLit | int | tuple[int, int] = 'uniform'
+    random_fov: bool = False
     depth: dnois.typing.Vector = float('inf')
     psf_size: int | tuple[int, int] = 64
     norm_psf: bool = True
@@ -125,6 +158,31 @@ class Template:
     x_symmetric: bool = False
     y_symmetric: bool = False
     log_optics_info: bool = True
+
+    def create_optics(self, sq, sensor):
+        sampling_num = dnois.typing.size2d(self.sampler)
+        sampler = sq.first.apt.sampler('rect', sampling_num)
+        psf_center = rt.RobustMeanPsfCenter()
+        psf_model = rt.IncoherentRectKernelPsf(psf_center=psf_center)
+        optics = rt.CoaxialRayTracing(
+            sq,
+            sensor,
+            perspective_focal_length=self.perspective_focal_length,
+            psf_model=psf_model,
+            sampler=sampler,
+            wl=self.wl,
+            segments=self.segments,
+            depth=self.depth,
+            psf_size=self.psf_size,
+            norm_psf=self.norm_psf,
+            cropping=self.cropping,
+            x_symmetric=self.x_symmetric,
+            y_symmetric=self.y_symmetric,
+        )
+
+        if self.log_optics_info:
+            logger.info(f'Optics created: {optics}')
+        return optics
 
     # ---------- configuration of image formation ----------
     patch_wise_conv_pad: int | tuple[int, int] = 32
@@ -152,6 +210,13 @@ class Template:
     enable_progress_bar: bool = True
     log_image_interval: int = None
 
+    # ---------- tensorboard ----------
+    tensorboard_logdir_level: typing.Literal['top', 'run', 'version'] = 'version'
+    tensorboard_port: int = None
+
+    def tensorboard_cla(self, log_dir: str) -> str:
+        return f'--logdir {log_dir} --port {self.tensorboard_port}'
+
     # ---------- initialization ----------
     nn_init_path: str = None
 
@@ -161,6 +226,26 @@ class Template:
 
     # ---------- evaluation ----------
     trained_ckpt_path: str = None
+
+    # ---------- physical environment ----------
+    system_temperature: float = None
+    system_pressure: float = None
+    temperature_affect_n: bool = False
+    pressure_affect_n: bool = False
+
+    def setup_physical_environment(self):
+        dnois.conf.temperature_affect_n = self.temperature_affect_n
+        dnois.conf.pressure_affect_n = self.pressure_affect_n
+        if self.system_temperature is not None:
+            dnois.conf.default_temperature = self.system_temperature
+        if self.system_pressure is not None:
+            dnois.conf.default_pressure = self.system_pressure
+
+    # ---------- unit ----------
+    length_unit: str = 'm'
+
+    def set_unit(self):
+        dnois.set_default('length', self.length_unit)
 
     # ---------- miscellaneous ----------
     random_seed: int = 42

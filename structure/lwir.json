@@ -7,16 +7,18 @@
         "type": "CircularAperture",
         "radius": 0.0085
       },
-      "roc": Infinity
+      "roc": Infinity,
+      "distance": 0.0010000000474974513
     },
     {
       "type": "Spherical",
-      "material": "vacuum",
+      "material": "air",
       "aperture": {
         "type": "CircularAperture",
         "radius": 0.0085
       },
-      "roc": Infinity
+      "roc": Infinity,
+      "distance": 0.0020000000949949026
     },
     {
       "type": "EvenAspherical",
@@ -32,11 +34,12 @@
         54400.0,
         -932499968.0,
         7280999792640.0
-      ]
+      ],
+      "distance": 0.004000000189989805
     },
     {
       "type": "EvenAspherical",
-      "material": "vacuum",
+      "material": "air",
       "aperture": {
         "type": "CircularAperture",
         "radius": 0.0095
@@ -48,33 +51,18 @@
         68330.0,
         -1076999936.0,
         9722000310272.0
-      ]
+      ],
+      "distance": 0.003000000026077032
     },
     {
       "type": "CircularStop",
       "aperture": {
         "type": "CircularAperture",
         "radius": 0.007327000144869089
-      }
-    }
-  ],
-  "contexts": [
-    {
-      "distance": 0.0010000000474974513
-    },
-    {
-      "distance": 0.0020000000949949026
-    },
-    {
-      "distance": 0.004000000189989805
-    },
-    {
-      "distance": 0.003000000026077032
-    },
-    {
+      },
       "distance": 0.039549000561237335
     }
   ],
-  "foremost_material": "vacuum",
+  "foremost_material": "air",
   "stop_idx": -1
 }

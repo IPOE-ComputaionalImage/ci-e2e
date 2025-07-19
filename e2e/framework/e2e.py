@@ -147,12 +147,14 @@ class TrainingFramework(CIFramework, FromSpecification):
         nn_sd = {k[len(prefix):]: v for k, v in ckpt['state_dict'].items() if k.startswith(prefix)}
         self.model.nn.load_state_dict(nn_sd)
 
-    def execute_train(self, spec: Template):
+    def execute_train(self, spec: Template, tensorboard_on: bool = True):
         trainer = create_trainer_from_spec(spec)
         dm = e2e.data.HyperSimDM.from_specification(spec)
 
         logger.info('Preparation completed, starting end-to-end training...')
-        trainer.fit(self, datamodule=dm)
+        cm = train_context_manager(spec, trainer, tensorboard_on)
+        with cm:
+            trainer.fit(self, datamodule=dm)
 
     def execute_eval(self, spec: Template):
         trainer = create_trainer_from_spec(spec)

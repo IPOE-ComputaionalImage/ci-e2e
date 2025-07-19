@@ -52,10 +52,10 @@ class CIFramework(lightning.LightningModule, FromSpecification):
             raise NotImplementedError(f'Action {item[8:]} is not implemented for framework {self.name}')
         return super().__getattr__(item)
 
-    def execute(self, action: str, spec: Template):
+    def execute(self, action: str, spec: Template, **kwargs):
         method_name = f'execute_{action}'
         method = getattr(self, method_name)
-        return method(spec)
+        return method(spec, **kwargs)
 
     @classmethod
     def from_specification(cls, spec: Template) -> typing.Self:
