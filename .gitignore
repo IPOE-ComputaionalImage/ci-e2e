@@ -1,10 +1,13 @@
 .cadence/
 .idea/
 
+**/__pycache__/
+*.pyc
+
 tapes/
 
 viflo.egg-info/
 dist/
 
-design-files/local-*/
-structure/local-*/
+design-files/local/
+structure/local/

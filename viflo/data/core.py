@@ -12,6 +12,8 @@ from ..specification import Template
 __all__ = [
     'data_module_from_spec',
     'make_cropper',
+    'make_dataset',
+    'make_loader',
 
     'BasicDataset',
     'VifloDataModule',
@@ -83,6 +85,12 @@ def make_dataset(config: dict[str, str]):
     return dataset
 
 
+def make_loader(dataset: Dataset, batch_size: int, random: bool, workers: int):
+    return DataLoader(
+        dataset, batch_size, random, num_workers=workers, pin_memory=True, persistent_workers=True,
+    )
+
+
 class MixedDataModule(VifloDataModule):
     name = 'mixed'
 
@@ -96,25 +104,19 @@ class MixedDataModule(VifloDataModule):
         train_config = self.config['train']
         random = train_config.pop('random', True)
         dataset = make_dataset(train_config)
-        loader = DataLoader(
-            dataset, self.batch_size, random, num_workers=self.workers, pin_memory=True, drop_last=True
-        )
+        loader = make_loader(dataset, self.batch_size, random, self.workers)
         return loader
 
     def val_dataloader(self):
         val_config = self.config['val']
         dataset = make_dataset(val_config)
-        loader = DataLoader(
-            dataset, self.batch_size, False, num_workers=self.workers, pin_memory=True, drop_last=False
-        )
+        loader = make_loader(dataset, self.batch_size, False, self.workers)
         return loader
 
     def test_dataloader(self):
         test_config = self.config['test']
         dataset = make_dataset(test_config)
-        loader = DataLoader(
-            dataset, self.batch_size, False, num_workers=self.workers, pin_memory=True, drop_last=False
-        )
+        loader = make_loader(dataset, self.batch_size, False, self.workers, )
         return loader
 
     @classmethod

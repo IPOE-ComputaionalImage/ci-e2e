@@ -10,7 +10,7 @@ __all__ = [
 def arg_parser():
     parser = argparse.ArgumentParser(
         prog='python -m viflo',
-        description='End-to-end design framework of computation imaging system'
+        description='End-to-end design framework of computational imaging system'
     )
     parser.add_argument('spec_file', type=str)
     parser.add_argument(

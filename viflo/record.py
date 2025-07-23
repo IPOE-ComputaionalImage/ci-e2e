@@ -22,8 +22,9 @@ def tensorboard_runner(args: str):
         text=True,
     )
 
-    yield  # execute the code in the with block
-
-    proc.terminate()
-    proc.wait()
-    logger.info('Tensorboard server stopped.')
+    try:
+        yield  # execute the code in the with block
+    finally:
+        proc.terminate()
+        proc.wait()
+        logger.info('Tensorboard server stopped.')

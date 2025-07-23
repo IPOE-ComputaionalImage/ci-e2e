@@ -1,14 +1,12 @@
 import csv
 import logging
 import typing
-import warnings
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import torch
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset
 
 from .core import *
 from ..specification import Template, FromSpecification
@@ -73,8 +71,8 @@ class HyperSim(BasicDataset):
         foi_list = [(line[0], line[1], int(line[2])) for line in foi]  # content: (scene_name, camera_name, frame_id)
         self._foi = _filter_unavailable(foi_list, self.root)
         if len(self._foi) != self.size[split]:
-            warnings.warn(f'Wrong number of samples for {split} split '
-                          f'of HyperSim: {len(self._foi)} ({self.size[split]} expected)')
+            logger.warning(f'Wrong number of samples for {split} split '
+                           f'of HyperSim: {len(self._foi)} ({self.size[split]} expected)')
 
     def __len__(self) -> int:
         return len(self._foi)
@@ -127,19 +125,13 @@ class HyperSimDM(VifloDataModule, FromSpecification):
         return HyperSim(self.root, split, self.image_size, crop='random' if random_crop else 'center')
 
     def train_dataloader(self):
-        return DataLoader(
-            self.dataset('train'), self.batch_size, True, num_workers=self.workers, pin_memory=True,
-        )
+        return make_loader(self.dataset('train'), self.batch_size, True, self.workers)
 
     def val_dataloader(self):
-        return DataLoader(
-            self.dataset('val', False), self.batch_size, False, num_workers=self.workers, pin_memory=True,
-        )
+        return make_loader(self.dataset('val', False), self.batch_size, False, self.workers)
 
     def test_dataloader(self):
-        return DataLoader(
-            self.dataset('test', False), self.batch_size, False, num_workers=self.workers, pin_memory=True,
-        )
+        return make_loader(self.dataset('test', False), self.batch_size, False, self.workers)
 
     @classmethod
     def from_specification(cls, spec: Template, _) -> typing.Self:

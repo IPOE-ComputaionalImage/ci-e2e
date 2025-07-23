@@ -5,20 +5,14 @@ import torch
 
 from .cla import get_args
 from ..specification import parse_spec_file
+from ..viflog import setup_log
 
 __all__ = [
     'main',
 ]
 
+
 logger = logging.getLogger(__name__)
-
-
-def setup_log(level: str):
-    log_level = logging.getLevelName(level)
-    logging.basicConfig(
-        format='[%(asctime)s](%(levelname)s)%(threadName)s/%(name)s: %(message)s',
-        level=log_level
-    )
 
 
 def setup_global(spec):
@@ -30,7 +24,7 @@ def setup_global(spec):
 def main():
     args = get_args()
 
-    setup_log(args.log_level.upper())
+    setup_log(args.log_level)
 
     spec = parse_spec_file(args.spec_file)
     logger.info('Design file resolved')

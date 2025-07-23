@@ -59,8 +59,9 @@ class Deblur(CIFramework, FromSpecification):
         kwargs = self.spec.keywords_to_optical_model or {}
         kwargs = kwargs.get('train', {})
         pred, captured, result = self(gt, **kwargs)
+        gt = self.model.o.crop(gt)
 
-        restoration_loss = self.train_loss(pred, gt)
+        restoration_loss = self.train_loss(pred, gt.contiguous())
         self.log('train/restoration_loss', restoration_loss)
         losses.append(restoration_loss)
 
@@ -89,6 +90,7 @@ class Deblur(CIFramework, FromSpecification):
         kwargs = self.spec.keywords_to_optical_model or {}
         kwargs = kwargs.get('val', {})
         pred, captured, _ = self(gt, **kwargs)
+        gt = self.model.o.crop(gt)
 
         for k, m in self.val_metrics.items():
             self.log(f'val/{k}', m(pred, gt.contiguous()))
@@ -193,5 +195,5 @@ class Deblur(CIFramework, FromSpecification):
             logger.info(f'Loading checkpoint from {spec.trained_checkpoint_path}')
             obj = cls.load_from_checkpoint(spec.trained_ckpt_path, spec=spec)  # noqa
 
-        logger.info('End-to-end training framework created')
+        logger.info(f'Framework {cls.__name__} created')
         return obj
