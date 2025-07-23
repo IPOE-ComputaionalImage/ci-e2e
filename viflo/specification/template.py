@@ -4,15 +4,17 @@ import typing
 
 import dnois
 from dnois.optics import rt
+from lightning import LightningDataModule
 import torch
 
-import e2e.material
+import viflo.material
 
 __all__ = [
     'Template',
 ]
 
 logger = logging.getLogger(__name__)
+CIFramework: type = ...
 
 
 def _get_submodule_surf(qualified_param_name: str, module: torch.nn.Module) -> dnois.torch.EnhancedModule:
@@ -41,7 +43,14 @@ def _scale_param(m: dnois.torch.EnhancedModule, param_name: str, log: bool):
 @dataclasses.dataclass
 class Template:
     # ---------- framework ----------
-    framework: str = 'e2e'
+    framework: str | type['CIFramework'] = 'deblur'
+
+    def create_framework(self):
+        from viflo.framework import CIFramework
+        if isinstance(self.framework, str):
+            return CIFramework.from_specification(self)
+        else:
+            return self.framework.from_specification(self)
 
     # ---------- create surface sequence ----------
     lens_file_path: str = None
@@ -56,8 +65,8 @@ class Template:
                 return rt.CoaxialSurfaceSequence.load_json(self.lens_file_path)
             except dnois.mt.MaterialNotFoundError as e:
                 name = e.material_name
-                catalog = e2e.material.find_material(name)
-                e2e.material.load_catalog(catalog)
+                catalog = viflo.material.find_material(name)
+                viflo.material.load_catalog(catalog)
                 logger.info(f'Loaded catalog {catalog} to use material {name}')
 
     # ---------- specify parameters to optimize ----------
@@ -78,7 +87,7 @@ class Template:
         if freeze:
             if self.log_optimizability_modified:
                 logger.info(f'Freezing parameters: {self.frozen_parameters}')
-            sq.unfreeze()
+            # sq.unfreeze()
             for param_name in self.frozen_parameters:
                 sq.freeze(param_name)
 
@@ -118,7 +127,8 @@ class Template:
         if self.required_catalogs is None:
             return
         for catalog in self.required_catalogs:
-            e2e.material.load_catalog(catalog)
+            logger.info(f'Loading material catalog {catalog}...')
+            viflo.material.load_catalog(catalog)
 
     # ---------- sensor parameters ----------
     resolution: int | tuple[int, int] = None
@@ -126,9 +136,9 @@ class Template:
     rgb_sensor: bool = True
     bayer_pattern: dnois.sensor.BayerPattern = None
     noise_std: float | tuple[float, float] = None
-    max_value: float = 1.
+    sensor_max_value: float = 1.
     quantize: int = 0
-    linear2srgb: bool = False
+    sensor_linear2srgb: bool = False
 
     def create_sensor(self) -> dnois.sensor.StandardSensor:
         sensor = dnois.sensor.StandardSensor(
@@ -138,15 +148,16 @@ class Template:
             None,
             self.bayer_pattern,
             self.noise_std,
-            self.max_value,
+            self.sensor_max_value,
             self.quantize,
-            self.linear2srgb,
+            self.sensor_linear2srgb,
         )
         return sensor
 
     # ---------- configuration of optical system ----------
     perspective_focal_length: float = None
     psf_center: rt.PsfCenter = 'mean-robust'
+    psf_recenter: dnois.optics.GeneralPsfRecenterType = False
     sampler: int | tuple[int, int] = None
     wl: dnois.typing.Vector = dnois.fdc()
     segments: dnois.optics.SegLit | int | tuple[int, int] = 'uniform'
@@ -160,9 +171,9 @@ class Template:
     log_optics_info: bool = True
 
     def create_optics(self, sq, sensor):
-        sampling_num = dnois.typing.size2d(self.sampler)
-        sampler = sq.first.apt.sampler('rect', sampling_num)
-        psf_center = rt.RobustMeanPsfCenter()
+        sampler = sq.first.apt.sampler('rect', self.sampler)
+        psf_center = rt.PsfCenterDeterm.create(self.psf_center)
+        psf_recenter = dnois.optics.PsfRecenter.create(self.psf_recenter)
         psf_model = rt.IncoherentRectKernelPsf(psf_center=psf_center)
         optics = rt.CoaxialRayTracing(
             sq,
@@ -175,6 +186,7 @@ class Template:
             depth=self.depth,
             psf_size=self.psf_size,
             norm_psf=self.norm_psf,
+            psf_recenter=psf_recenter,
             cropping=self.cropping,
             x_symmetric=self.x_symmetric,
             y_symmetric=self.y_symmetric,
@@ -188,12 +200,18 @@ class Template:
     patch_wise_conv_pad: int | tuple[int, int] = 32
     linear_conv: bool = True
     imaging_in_linear: bool = True
+    keywords_to_optical_model: dict[str, dict[str, typing.Any]] = None
 
     # ---------- dataset ----------
+    data_module: str | dict[str, str] = None
     data_root: str = None
-    image_size: int | tuple[int, int] = None
+    hypersim_image_size: int | tuple[int, int] = None
     batch_size: int = None
     workers: int = None
+    mixed_data_module_config: dict[str, dict[str, str]] = None
+
+    def create_data_module(self, action: str) -> LightningDataModule:
+        raise NotImplementedError()
 
     # ---------- configuration of optimization ----------
     optics_lr: float = 1e-3
@@ -209,23 +227,32 @@ class Template:
     checkpoint_target_mode: str = None
     enable_progress_bar: bool = True
     log_image_interval: int = None
+    visualize_psf_cells: tuple[int, int] = (5, 5)
+    visualize_psf_quadrant: bool = False
+    visualize_psf_cell_size: int = 32
 
     # ---------- tensorboard ----------
     tensorboard_logdir_level: typing.Literal['top', 'run', 'version'] = 'version'
     tensorboard_port: int = None
 
     def tensorboard_cla(self, log_dir: str) -> str:
-        return f'--logdir {log_dir} --port {self.tensorboard_port}'
+        args = [
+            f'--logdir {log_dir}',
+        ]
+        if self.tensorboard_port is not None:
+            args.append(f'--port {self.tensorboard_port}')
+        return ' '.join(args)
 
     # ---------- initialization ----------
-    nn_init_path: str = None
+    initializing_checkpoint_path: str = None
 
     # ---------- constraints ----------
     target_focal_length: float = None
     focal_length_loss_weight: float = None
+    focal_length_type: str = None
 
-    # ---------- evaluation ----------
-    trained_ckpt_path: str = None
+    # ---------- checkpoint ----------
+    trained_checkpoint_path: str = None
 
     # ---------- physical environment ----------
     system_temperature: float = None
@@ -242,10 +269,27 @@ class Template:
             dnois.conf.default_pressure = self.system_pressure
 
     # ---------- unit ----------
-    length_unit: str = 'm'
+    length_unit: str = None
 
     def set_unit(self):
+        if self.length_unit is None:
+            return
+
         dnois.set_default('length', self.length_unit)
+
+    # ---------- precision ----------
+    torch_default_dtype: torch.dtype = None
+
+    def set_default_dtype(self):
+        if self.torch_default_dtype is None:
+            return
+        torch.set_default_dtype(self.torch_default_dtype)
 
     # ---------- miscellaneous ----------
     random_seed: int = 42
+
+    def setup_global(self):
+        self.set_default_dtype()
+        self.set_unit()
+        self.load_catalogs()
+        self.setup_physical_environment()

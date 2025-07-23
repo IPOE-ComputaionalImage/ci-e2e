@@ -151,11 +151,16 @@ class WienerUNet(nn.Module):
 
         self.output_conv = Conv(32, 3 if self.color_flag else 1, 3, 1, None, apply_instnorm=False)
 
-    def forward(self, inputs, psf, return_filtered: bool = False):
+    def forward(self, inputs, optics=None):
+        if optics is None:
+            raise RuntimeError(f'Optical system model is required for {self.__class__.__name__}')
+        axial_inf = optics.new_tensor([0, 0, float('inf')])
+        psf = optics.psf(axial_inf).unsqueeze(0)  # 计算轴上无穷远的PSF
+
         deconv0 = deconvolve_wnr(inputs, inputs, psf, self.gamma ** 2)
         deconv0 = resize_with_crop_or_pad(deconv0, inputs.size(-2), inputs.size(-1))
         if not self.nn_enabled:
-            return deconv0
+            return {'pred': deconv0}
 
         # First downsampling block
         conv_d1_k1 = self.conv_d1_k1(self.conv_d1_k0(deconv0))
@@ -204,8 +209,4 @@ class WienerUNet(nn.Module):
 
         # Final output
         out = deconv0 + self.output_conv(conv_u4_k3)
-
-        if return_filtered:
-            return out, deconv0
-        else:
-            return out
+        return {'pred': out, 'filtered': deconv0}

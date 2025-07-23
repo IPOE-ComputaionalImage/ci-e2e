@@ -2,3 +2,9 @@
 .idea/
 
 tapes/
+
+viflo.egg-info/
+dist/
+
+design-files/local-*/
+structure/local-*/

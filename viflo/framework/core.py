@@ -6,8 +6,8 @@ import lightning
 import torch
 import torchmetrics as tm
 
-from e2e.model import ImagingSystem
-from e2e.specification import FromSpecification, Template
+from viflo.model import ImagingSystem
+from viflo.specification import FromSpecification, Template
 
 __all__ = [
     'create_train_loss',
@@ -56,6 +56,9 @@ class CIFramework(lightning.LightningModule, FromSpecification):
         method_name = f'execute_{action}'
         method = getattr(self, method_name)
         return method(spec, **kwargs)
+
+    def execute_print(self, *_, **__):
+        print(self)
 
     @classmethod
     def from_specification(cls, spec: Template) -> typing.Self:

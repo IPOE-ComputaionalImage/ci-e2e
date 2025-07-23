@@ -4,8 +4,8 @@ import typing
 import dnois
 import torch
 
-import e2e.nn
-from e2e.specification import Template, FromSpecification
+import viflo.nn
+from viflo.specification import Template, FromSpecification
 
 __all__ = [
     'create_sq',
@@ -41,7 +41,7 @@ class ImagingSystem(torch.nn.Module, FromSpecification):
     ):
         super().__init__()
         self.c = cam
-        self.nn = e2e.nn.WienerUNet(self.nn_enabled)
+        self.nn = viflo.nn.WienerUNet(self.nn_enabled)
 
         self.conv_pad = conv_pad
         self.linear_conv = linear_conv
@@ -63,14 +63,13 @@ class ImagingSystem(torch.nn.Module, FromSpecification):
 
         captured = self.c(scene, optics_kw=kwargs)  # 调用Camera对象时通过optics_kw参数传入光学系统的参数
 
-        axial_inf = self.o.new_tensor([0, 0, float('inf')])
-        psf4deconv = self.o.psf(axial_inf).unsqueeze(0)  # 计算轴上无穷远的PSF
-        pred = self.nn(captured, psf4deconv)
+        result = self.nn(captured, self.o)
+        pred = result['pred']
 
         if self.imaging_in_linear:
             pred = dnois.isp.linear2srgb(pred)
             captured = dnois.isp.linear2srgb(captured)
-        return pred, captured
+        return pred, captured, result
 
     @property
     def o(self) -> dnois.optics.rt.CoaxialRayTracing:

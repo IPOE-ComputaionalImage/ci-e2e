@@ -5,15 +5,13 @@ import warnings
 from pathlib import Path
 from typing import Literal
 
-import lightning
 import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-from torchvision.transforms import v2
 
-import e2e.specification
-from e2e.specification import Template
+from .core import *
+from ..specification import Template, FromSpecification
 
 __all__ = [
     'HyperSim',
@@ -37,7 +35,7 @@ def _filter_unavailable(foi_list: list[tuple[str, str, int]], root):
     return foi_list
 
 
-class HyperSim(Dataset):
+class HyperSim(BasicDataset):
     height = 768
     height_min = height
     height_max = height
@@ -60,14 +58,12 @@ class HyperSim(Dataset):
         nan_fill_value: float = None,
         crop: str = 'random',
     ):
-        super().__init__()
-        root = Path(root)
+        super().__init__(root, size, crop)
         if split_file_path is None:
-            split_file_path = root / 'meta' / 'metadata_images_split_scene_v1.csv'
+            split_file_path = self.root / 'meta' / 'metadata_images_split_scene_v1.csv'
         else:
             split_file_path = Path(split_file_path)
 
-        self._root = root
         self.use_hdr = use_hdr
         self.use_tonemap = use_tonemap
         self.nan_fill_value = nan_fill_value
@@ -75,17 +71,10 @@ class HyperSim(Dataset):
             reader = csv.reader(f)
             foi = [line for line in reader if line[5] == split]  # files of interest
         foi_list = [(line[0], line[1], int(line[2])) for line in foi]  # content: (scene_name, camera_name, frame_id)
-        self._foi = _filter_unavailable(foi_list, root)
+        self._foi = _filter_unavailable(foi_list, self.root)
         if len(self._foi) != self.size[split]:
             warnings.warn(f'Wrong number of samples for {split} split '
                           f'of HyperSim: {len(self._foi)} ({self.size[split]} expected)')
-
-        if crop == 'random':
-            self.transform = v2.RandomCrop(size)
-        elif crop == 'center':
-            self.transform = v2.CenterCrop(size)
-        else:
-            raise ValueError(f'Unknown crop mode: {crop}')
 
     def __len__(self) -> int:
         return len(self._foi)
@@ -93,7 +82,7 @@ class HyperSim(Dataset):
     def __getitem__(self, item: int):
         path_info = self._foi[item]
         frame_id = f'{path_info[2]:04d}'
-        path = self._root / path_info[0] / 'images'
+        path = self.root / path_info[0] / 'images'
 
         if self.use_hdr:
             i_path_cam = f'scene_{path_info[1]}_final_hdf5'
@@ -124,7 +113,9 @@ class HyperSim(Dataset):
         }
 
 
-class HyperSimDM(lightning.LightningDataModule, e2e.specification.FromSpecification):
+class HyperSimDM(VifloDataModule, FromSpecification):
+    name = 'hypersim'
+
     def __init__(self, root: str | Path, image_size: tuple[int, int], batch_size: int, workers: int):
         super().__init__()
         self.root = root
@@ -151,10 +142,10 @@ class HyperSimDM(lightning.LightningDataModule, e2e.specification.FromSpecificat
         )
 
     @classmethod
-    def from_specification(cls, spec: Template) -> typing.Self:
+    def from_specification(cls, spec: Template, _) -> typing.Self:
         dm = cls(
             spec.data_root,
-            spec.image_size,
+            spec.hypersim_image_size,
             spec.batch_size,
             spec.workers,
         )

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import dnois
 
-from e2e import conf
+from viflo import conf
 
 
 def build_index(dir_path: str | Path = None):
@@ -13,10 +13,10 @@ def build_index(dir_path: str | Path = None):
     index = {}
     files = dir_path.glob('*.agf', case_sensitive=False)
     for file in files:
-        if str(file) not in index:
-            index[str(file)] = set()
+        if file.stem not in index:
+            index[file.stem] = set()
 
-        with open(file, 'r') as f:
+        with open(file, 'r', encoding='utf-8', errors='replace') as f:
             lines = f.readlines()
         for line in lines:
             line = line.strip()

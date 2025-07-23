@@ -1,9 +1,11 @@
 import abc
 import json
-from pathlib import Path
-import yaml
+import logging
 import runpy
+from pathlib import Path
 import typing
+
+import yaml
 
 from .template import Template
 
@@ -13,6 +15,7 @@ __all__ = [
     'FromSpecification',
     'SpecificationError',
 ]
+logger = logging.getLogger(__name__)
 
 
 def _filter_special(global_dict):
@@ -21,6 +24,7 @@ def _filter_special(global_dict):
 
 def _parse_py(file_path: Path) -> Template:
     results = runpy.run_path(str(file_path))
+    globals()['__viflo_artifacts__'] = results  # to avoid GC
 
     template_cls = None
     template = None
@@ -46,6 +50,8 @@ def _parse_py(file_path: Path) -> Template:
         template = Template(**_filter_special(results))
     else:  # construct a template from the found template class
         template = template_cls()
+
+    logger.info(f'Specification resolved ({template.__class__.__name__})')
     return template
 
 
@@ -67,6 +73,7 @@ class SpecificationError(RuntimeError):
 
 def parse_spec_file(file_path: str | Path) -> Template:
     file_path = Path(file_path)
+    logger.info(f'Resolving specification from {file_path.suffix} file')
     if file_path.suffix == '.py':
         return _parse_py(file_path)
     elif file_path.suffix == '.json':

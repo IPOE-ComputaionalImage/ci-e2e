@@ -5,9 +5,9 @@ import lightning
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.profilers import SimpleProfiler
 
-import e2e.conf
-from e2e.record import tensorboard_runner
-from e2e.specification import Template
+import viflo.conf
+from viflo.record import tensorboard_runner
+from viflo.specification import Template
 
 __all__ = [
     'create_trainer_from_spec',
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_trainer_from_spec(spec: Template) -> lightning.Trainer:
-    tb = TensorBoardLogger(e2e.conf.optimization_result_dir, spec.run_name, default_hp_metric=False)
+    tb = TensorBoardLogger(viflo.conf.optimization_result_dir, spec.run_name, default_hp_metric=False)
     trainer = lightning.Trainer(
         logger=tb,
         callbacks=[
