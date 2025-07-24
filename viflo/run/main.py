@@ -35,7 +35,7 @@ def main():
     logger.info(f'Prepare to execute action: {args.action}')
 
     kwargs = {}
-    if args.action == 'train':
+    if args.action == 'train' or args.action == 'pretrain':
         kwargs['tensorboard_on'] = not args.no_tensorboard
     framework.execute(args.action, spec, **kwargs)
     logger.info('Action completed')

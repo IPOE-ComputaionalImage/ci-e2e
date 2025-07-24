@@ -50,7 +50,8 @@ class Deblur(CIFramework, FromSpecification):
 
     def optimizer_step(self, epoch: int, batch_idx: int, optimizer, optimizer_closure=None) -> None:
         self.warmup(optimizer)
-        super().optimizer_step(epoch, batch_idx, optimizer, optimizer_closure)
+        with self.spec.optimizer_step_context():
+            super().optimizer_step(epoch, batch_idx, optimizer, optimizer_closure)
 
     def training_step(self, batch, batch_idx):
         losses = []
@@ -120,12 +121,13 @@ class Deblur(CIFramework, FromSpecification):
         return fl_loss
 
     def log_param(self):
-        sq = self.model.o.surfaces
-        self.log(f'param/2/roc', sq[2].roc)
-        for i in range(2, 5):
-            self.log(f'param/2/a{i}', getattr(sq[2], f'a{i}'))
-            self.log(f'param/3/a{i}', getattr(sq[3], f'a{i}'))
-        self.log(f'param/4/distance', sq[4].distance)
+        for i, s in enumerate(self.model.o.surfaces):
+            for k, p in s.nominal_values.items():
+                if p.requires_grad:
+                    self.log(f'param/{i}/{k}', p)
+            for k, p in s.context.nominal_values.items():
+                if p.requires_grad:
+                    self.log(f'param/{i}/{k}', p)
 
     @torch.no_grad()
     def make_psf(self):

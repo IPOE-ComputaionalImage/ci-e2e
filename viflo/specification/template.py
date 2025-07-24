@@ -1,3 +1,4 @@
+import contextlib
 import dataclasses
 import logging
 import typing
@@ -235,14 +236,6 @@ class Template:
     tensorboard_logdir_level: typing.Literal['top', 'run', 'version'] = 'version'
     tensorboard_port: int = None
 
-    def tensorboard_cla(self, log_dir: str) -> str:
-        args = [
-            f'--logdir {log_dir}',
-        ]
-        if self.tensorboard_port is not None:
-            args.append(f'--port {self.tensorboard_port}')
-        return ' '.join(args)
-
     # ---------- initialization ----------
     initializing_checkpoint_path: str = None
 
@@ -284,6 +277,14 @@ class Template:
         if self.torch_default_dtype is None:
             return
         torch.set_default_dtype(self.torch_default_dtype)
+
+    # ---------- debug ----------
+    torch_detect_anomaly: bool = None
+
+    def optimizer_step_context(self):
+        if self.torch_detect_anomaly is None:
+            return contextlib.nullcontext()
+        return torch.autograd.set_detect_anomaly(self.torch_detect_anomaly)
 
     # ---------- miscellaneous ----------
     random_seed: int = 42

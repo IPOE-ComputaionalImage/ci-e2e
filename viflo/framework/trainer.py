@@ -58,5 +58,4 @@ def train_context_manager(spec: Template, trainer: lightning.Trainer, tensorboar
         logger.warning(f'Unknown tensorboard_logdir_level {spec.tensorboard_logdir_level}, fall back to "version"')
         log_dir = tb_logger.log_dir
 
-    cla = spec.tensorboard_cla(log_dir)  # command line arguments
-    return tensorboard_runner(cla)
+    return tensorboard_runner(log_dir, spec.tensorboard_port)

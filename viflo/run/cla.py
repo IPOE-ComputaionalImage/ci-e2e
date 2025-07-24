@@ -24,7 +24,7 @@ def arg_parser():
     parser_pretrain = subparsers.add_parser('pretrain')
     _add_common_train_arg(parser_pretrain)
 
-    parser_eval = subparsers.add_parser('eval')
+    _ = subparsers.add_parser('eval')
 
     _ = subparsers.add_parser('print')
 
@@ -33,7 +33,7 @@ def arg_parser():
 
 def _add_common_train_arg(parser_train):
     parser_train.add_argument(
-        '--no-tensorboard', action='store_false',
+        '--no-tensorboard', action='store_true',
         help='Do not start a tensorboard server to monitor the training progress'
     )
 
